@@ -75,7 +75,7 @@ export default class Video extends Component {
     this.setNativeProps({ fullscreen: false });
   };
 
-  save = async (options?) => {
+  save = async (options) => {
     return await NativeModules.VideoManager.save(options, findNodeHandle(this._root));
   }
 
@@ -269,13 +269,25 @@ export default class Video extends Component {
     if (uri && uri.match(/^\//)) {
       uri = `file://${uri}`;
     }
+    let audioUri = source.audioUri || '';
+    if (audioUri && audioUri.match(/^\//)) {
+      audioUri = `file://${audioUri}`;
+    }
 
     if (!uri) {
       console.warn('Trying to load empty source.');
     }
+    if (!audioUri) {
+      console.info('not set audio url.');
+    }
+
+    console.info('audio url:', audioUri);
+
 
     const isNetwork = !!(uri && uri.match(/^https?:/));
     const isAsset = !!(uri && uri.match(/^(assets-library|ipod-library|file|content|ms-appx|ms-appdata):/));
+    const isAudioNetwork = !!(audioUri && audioUri.match(/^https?:/));
+    const isAudioAsset = !!(audioUri && audioUri.match(/^(assets-library|ipod-library|file|content|ms-appx|ms-appdata):/));
 
     let nativeResizeMode;
     const RCTVideoInstance = this.getViewManagerConfig('RCTVideo');
@@ -303,6 +315,15 @@ export default class Video extends Component {
         mainVer: source.mainVer || 0,
         patchVer: source.patchVer || 0,
         requestHeaders: source.headers ? this.stringsOnlyObject(source.headers) : {},
+
+        audioUri,
+        isAudioNetwork,
+        isAudioAsset,
+        // shouldCache,
+        audioType: source.audioType || '',
+        audioMainVer: source.audioMainVer || 0,
+        audioPatchVer: source.audioPatchVer || 0,
+        // requestHeaders: source.headers ? this.stringsOnlyObject(source.headers) : {},
       },
       onVideoLoadStart: this._onLoadStart,
       onVideoLoad: this._onLoad,
