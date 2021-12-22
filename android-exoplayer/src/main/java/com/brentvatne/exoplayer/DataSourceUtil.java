@@ -1,5 +1,7 @@
 package com.brentvatne.exoplayer;
 
+import android.text.TextUtils;
+
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.modules.network.CookieJarContainer;
 import com.facebook.react.modules.network.ForwardingCookieHandler;
@@ -20,6 +22,8 @@ public class DataSourceUtil {
     private DataSourceUtil() {
     }
 
+    private static final String USERAGENT_HEADER = "user-agent";
+
     private static DataSource.Factory rawDataSourceFactory = null;
     private static DataSource.Factory defaultDataSourceFactory = null;
     private static HttpDataSource.Factory defaultHttpDataSourceFactory = null;
@@ -31,7 +35,9 @@ public class DataSourceUtil {
 
     public static String getUserAgent(ReactContext context) {
         if (userAgent == null) {
+//            ReactNativeVideo/1.0 (Linux;Android 8.0.0) ExoPlayerLib/2.13.3
             userAgent = Util.getUserAgent(context, "ReactNativeVideo");
+//            userAgent = "Mozilla/5.0 BiliDroid/5.58.0 (bbcallen@gmail.com)";
         }
         return userAgent;
     }
@@ -48,8 +54,22 @@ public class DataSourceUtil {
     }
 
 
+//    public static DataSource.Factory getDefaultDataSourceFactory(ReactContext context, DefaultBandwidthMeter bandwidthMeter, Map<String, String> requestHeaders) {
+//        if (defaultDataSourceFactory == null || (requestHeaders != null && !requestHeaders.isEmpty())) {
+//            defaultDataSourceFactory = buildDataSourceFactory(context, bandwidthMeter, requestHeaders);
+//        }
+//        return defaultDataSourceFactory;
+//    }
+
     public static DataSource.Factory getDefaultDataSourceFactory(ReactContext context, DefaultBandwidthMeter bandwidthMeter, Map<String, String> requestHeaders) {
         if (defaultDataSourceFactory == null || (requestHeaders != null && !requestHeaders.isEmpty())) {
+            if((requestHeaders != null && !requestHeaders.isEmpty())){
+                for (Map.Entry<String, String> entry : requestHeaders.entrySet()) {
+                    if (entry.getKey().toLowerCase().equals(USERAGENT_HEADER) && !TextUtils.isEmpty(entry.getValue())) {
+                        setUserAgent(entry.getValue());
+                    }
+                }
+            }
             defaultDataSourceFactory = buildDataSourceFactory(context, bandwidthMeter, requestHeaders);
         }
         return defaultDataSourceFactory;

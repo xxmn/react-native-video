@@ -441,7 +441,7 @@ class ReactExoplayerView extends FrameLayout implements
                     MediaSource videoSource = buildMediaSource(srcUri, extension, drmSessionManager);
                     MediaSource mediaSource;
                     if (mediaSourceList.size() == 0) {
-                        if (audioSrcUri != null) {
+                        if (audioSrcUri.getHost() != null) {
                             MediaSource audioSource = buildMediaSource(audioSrcUri, audioExtension, drmSessionManager);
                             mediaSource = new MergingMediaSource(videoSource, audioSource);
                         } else {
@@ -449,7 +449,7 @@ class ReactExoplayerView extends FrameLayout implements
                         }
                     } else {
                         mediaSourceList.add(0, videoSource);
-                        if (audioSrcUri != null) {
+                        if (audioSrcUri.getHost() != null) {
                             MediaSource audioSource = buildMediaSource(audioSrcUri, audioExtension, drmSessionManager);
                             mediaSourceList.add(1, audioSource);
                         }
@@ -462,7 +462,9 @@ class ReactExoplayerView extends FrameLayout implements
                     if (haveResumePosition) {
                         player.seekTo(resumeWindow, resumePosition);
                     }
-                    player.prepare(mediaSource, !haveResumePosition, false);
+//                    player.prepare(mediaSource, !haveResumePosition, false);
+                    player.setMediaSource(mediaSource, !haveResumePosition);
+                    player.prepare();
                     playerNeedsSource = false;
 
                     reLayout(exoPlayerView);

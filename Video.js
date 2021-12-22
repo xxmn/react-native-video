@@ -281,9 +281,6 @@ export default class Video extends Component {
       console.info('not set audio url.');
     }
 
-    console.info('audio url:', audioUri);
-
-
     const isNetwork = !!(uri && uri.match(/^https?:/));
     const isAsset = !!(uri && uri.match(/^(assets-library|ipod-library|file|content|ms-appx|ms-appdata):/));
     const isAudioNetwork = !!(audioUri && audioUri.match(/^https?:/));
