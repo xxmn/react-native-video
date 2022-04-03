@@ -263,15 +263,20 @@ export default class Video extends Component {
   render() {
     const resizeMode = this.props.resizeMode;
     const source = resolveAssetSource(this.props.source) || {};
+    const audio_source = resolveAssetSource(this.props.audio_source) || {};
     const shouldCache = !source.__packager_asset;
 
     let uri = source.uri || '';
+    let audio_uri = audio_source.uri || '';
     if (uri && uri.match(/^\//)) {
       uri = `file://${uri}`;
     }
 
     if (!uri) {
       console.warn('Trying to load empty source.');
+    }
+    if (!uri) {
+      console.info('Trying to load empty audio source.');
     }
 
     const isNetwork = !!(uri && uri.match(/^https?:/));
@@ -303,6 +308,16 @@ export default class Video extends Component {
         mainVer: source.mainVer || 0,
         patchVer: source.patchVer || 0,
         requestHeaders: source.headers ? this.stringsOnlyObject(source.headers) : {},
+      },
+      audio_src: {
+        audio_uri,
+        isNetwork,
+        isAsset,
+        shouldCache,
+        type: audio_source.type || '',
+        mainVer: audio_source.mainVer || 0,
+        patchVer: audio_source.patchVer || 0,
+        requestHeaders: audio_source.headers ? this.stringsOnlyObject(audio_source.headers) : {},
       },
       onVideoLoadStart: this._onLoadStart,
       onVideoLoad: this._onLoad,

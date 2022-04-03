@@ -110,6 +110,7 @@ class ReactExoplayerView extends FrameLayout implements
     private ExoPlayerView exoPlayerView;
 
     private DataSource.Factory mediaDataSourceFactory;
+    private DataSource.Factory mediaAudioDataSourceFactory;
     private SimpleExoPlayer player;
     private DefaultTrackSelector trackSelector;
     private boolean playerNeedsSource;
@@ -138,7 +139,9 @@ class ReactExoplayerView extends FrameLayout implements
 
     // Props from React
     private Uri srcUri;
+    private Uri audioSrcUri;
     private String extension;
+    private String audioExtension;
     private boolean repeat;
     private String audioTrackType;
     private Dynamic audioTrackValue;
@@ -183,10 +186,10 @@ class ReactExoplayerView extends FrameLayout implements
             }
         }
     };
-    
+
     public double getPositionInFirstPeriodMsForCurrentWindow(long currentPosition) {
         Timeline.Window window = new Timeline.Window();
-        if(!player.getCurrentTimeline().isEmpty()) {    
+        if(!player.getCurrentTimeline().isEmpty()) {
             player.getCurrentTimeline().getWindow(player.getCurrentWindowIndex(), window);
         }
         return window.windowStartTimeMs + currentPosition;
@@ -216,6 +219,7 @@ class ReactExoplayerView extends FrameLayout implements
     private void createViews() {
         clearResumePosition();
         mediaDataSourceFactory = buildDataSourceFactory(true);
+        mediaAudioDataSourceFactory = buildDataSourceFactory(true);
         if (CookieHandler.getDefault() != DEFAULT_COOKIE_MANAGER) {
             CookieHandler.setDefault(DEFAULT_COOKIE_MANAGER);
         }
@@ -447,16 +451,20 @@ class ReactExoplayerView extends FrameLayout implements
 
                     ArrayList<MediaSource> mediaSourceList = buildTextSources();
                     MediaSource videoSource = buildMediaSource(srcUri, extension, drmSessionManager);
+                    MediaSource audioSource = buildMediaSource2(audioSrcUri, audioExtension, drmSessionManager);
                     MediaSource mediaSource;
-                    if (mediaSourceList.size() == 0) {
-                        mediaSource = videoSource;
-                    } else {
-                        mediaSourceList.add(0, videoSource);
-                        MediaSource[] textSourceArray = mediaSourceList.toArray(
-                                new MediaSource[mediaSourceList.size()]
-                        );
-                        mediaSource = new MergingMediaSource(textSourceArray);
-                    }
+                    mediaSource = new MergingMediaSource(videoSource, audioSource);
+                    // if (mediaSourceList.size() == 0) {
+                    //     // mediaSource = videoSource;
+                    //     mediaSource = new MergingMediaSource(videoSource, audioSource);
+                    // } else {
+                    //     mediaSourceList.add(0, videoSource);
+                    //     mediaSourceList.add(1, audioSource);
+                    //     MediaSource[] textSourceArray = mediaSourceList.toArray(
+                    //             new MediaSource[mediaSourceList.size()]
+                    //     );
+                    //     mediaSource = new MergingMediaSource(textSourceArray);
+                    // }
 
                     boolean haveResumePosition = resumeWindow != C.INDEX_UNSET;
                     if (haveResumePosition) {
@@ -478,8 +486,7 @@ class ReactExoplayerView extends FrameLayout implements
         }, 1);
     }
 
-    private DrmSessionManager buildDrmSessionManager(UUID uuid,
-                                                                           String licenseUrl, String[] keyRequestPropertiesArray) throws UnsupportedDrmException {
+    private DrmSessionManager buildDrmSessionManager(UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray) throws UnsupportedDrmException {
         if (Util.SDK_INT < 18) {
             return null;
         }
@@ -498,6 +505,9 @@ class ReactExoplayerView extends FrameLayout implements
     private MediaSource buildMediaSource(Uri uri, String overrideExtension, DrmSessionManager drmSessionManager) {
         int type = Util.inferContentType(!TextUtils.isEmpty(overrideExtension) ? "." + overrideExtension
                 : uri.getLastPathSegment());
+
+        Log.i("video url:", uri.toString());
+
         switch (type) {
             case C.TYPE_SS:
                 return new SsMediaSource.Factory(
@@ -525,6 +535,26 @@ class ReactExoplayerView extends FrameLayout implements
             case C.TYPE_OTHER:
                 return new ProgressiveMediaSource.Factory(
                         mediaDataSourceFactory
+                ).setDrmSessionManager(drmSessionManager)
+                 .setLoadErrorHandlingPolicy(
+                        config.buildLoadErrorHandlingPolicy(minLoadRetryCount)
+                ).createMediaSource(uri);
+            default: {
+                throw new IllegalStateException("Unsupported type: " + type);
+            }
+        }
+    }
+    private MediaSource buildMediaSource2(Uri uri, String overrideExtension, DrmSessionManager drmSessionManager) {
+        int type = Util.inferContentType(!TextUtils.isEmpty(overrideExtension) ? "." + overrideExtension
+                : uri.getLastPathSegment());
+
+        Log.i("audio url:", uri.toString());
+
+        switch (type) {
+            case C.TYPE_DASH:
+                return new DashMediaSource.Factory(
+                        new DefaultDashChunkSource.Factory(mediaAudioDataSourceFactory),
+                        buildDataSourceFactory(false)
                 ).setDrmSessionManager(drmSessionManager)
                  .setLoadErrorHandlingPolicy(
                         config.buildLoadErrorHandlingPolicy(minLoadRetryCount)
@@ -1039,6 +1069,34 @@ class ReactExoplayerView extends FrameLayout implements
         }
     }
 
+    public void setAudioSrc(final Uri uri, final String extension, Map<String, String> headers) {
+        if (uri != null) {
+            boolean isSourceEqual = uri.equals(audioSrcUri);
+
+            this.audioSrcUri = uri;
+            this.audioExtension = extension;
+            this.requestHeaders = headers;
+            this.mediaAudioDataSourceFactory =
+                    DataSourceUtil.getDefaultDataSourceFactory(this.themedReactContext, bandwidthMeter,
+                            this.requestHeaders);
+
+            if (!isSourceEqual) {
+                reloadSource();
+            }
+        }
+    }
+
+    public void clearAudioSrc() {
+        if (audioSrcUri != null) {
+            player.stop(true);
+            this.audioSrcUri = null;
+            this.audioExtension = null;
+            this.requestHeaders = null;
+            this.mediaAudioDataSourceFactory = null;
+            clearResumePosition();
+        }
+    }
+
     public void setProgressUpdateInterval(final float progressUpdateInterval) {
         mProgressUpdateInterval = progressUpdateInterval;
     }
@@ -1054,6 +1112,19 @@ class ReactExoplayerView extends FrameLayout implements
             this.srcUri = uri;
             this.extension = extension;
             this.mediaDataSourceFactory = buildDataSourceFactory(true);
+
+            if (!isSourceEqual) {
+                reloadSource();
+            }
+        }
+    }
+    public void setRawAudioSrc(final Uri uri, final String extension) {
+        if (uri != null) {
+            boolean isSourceEqual = uri.equals(audioSrcUri);
+
+            this.audioSrcUri = uri;
+            this.audioExtension = extension;
+            this.mediaAudioDataSourceFactory = buildDataSourceFactory(true);
 
             if (!isSourceEqual) {
                 reloadSource();

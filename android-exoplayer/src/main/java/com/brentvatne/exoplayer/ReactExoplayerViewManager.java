@@ -30,6 +30,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String REACT_CLASS = "RCTVideo";
 
     private static final String PROP_SRC = "src";
+    private static final String PROP_AUDIO_SRC = "audio_src";
     private static final String PROP_SRC_URI = "uri";
     private static final String PROP_SRC_TYPE = "type";
     private static final String PROP_DRM = "drm";
@@ -132,6 +133,46 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
                     videoView.setDrmLicenseHeader(drmKeyRequestPropertiesList.toArray(new String[0]));
                 }
                 videoView.setUseTextureView(false);
+            }
+        }
+    }
+
+    @ReactProp(name = PROP_AUDIO_SRC)
+    public void setAudioSrc(final ReactExoplayerView videoView, @Nullable ReadableMap audio_src) {
+        Context context = videoView.getContext().getApplicationContext();
+        String uriString = audio_src.hasKey(PROP_SRC_URI) ? audio_src.getString(PROP_SRC_URI) : null;
+        String extension = audio_src.hasKey(PROP_SRC_TYPE) ? audio_src.getString(PROP_SRC_TYPE) : null;
+        Map<String, String> headers = audio_src.hasKey(PROP_SRC_HEADERS) ? toStringMap(audio_src.getMap(PROP_SRC_HEADERS)) : null;
+
+        if (TextUtils.isEmpty(uriString)) {
+            videoView.clearAudioSrc();
+            return;
+        }
+
+        if (startsWithValidScheme(uriString)) {
+            Uri srcUri = Uri.parse(uriString);
+
+            if (srcUri != null) {
+                videoView.setAudioSrc(srcUri, extension, headers);
+            }
+        } else {
+            int identifier = context.getResources().getIdentifier(
+                uriString,
+                "drawable",
+                context.getPackageName()
+            );
+            if (identifier == 0) {
+                identifier = context.getResources().getIdentifier(
+                    uriString,
+                    "raw",
+                    context.getPackageName()
+                );
+            }
+            if (identifier > 0) {
+                Uri srcUri = RawResourceDataSource.buildRawResourceUri(identifier);
+                if (srcUri != null) {
+                    videoView.setRawAudioSrc(srcUri, extension);
+                }
             }
         }
     }
